@@ -53,12 +53,14 @@ def get_song_lyrics_url(song_id):
 
 
 # Function to fetch the metadata from the Genius lyrics page
-def fetch_song_metadata(url):
+def fetch_song_metadata(url, song_title, artist):
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
     
     # Define the metadata structure with initial values
     metadata = {
+        'Title': song_title,
+        'Artist': artist,
         'Producer': 'N/A',
         'Writers': 'N/A',
         'Mastered At': 'N/A',
@@ -125,7 +127,7 @@ def save_metadata(artist, song_title):
     try:
         song_id = search_song(artist, song_title)
         lyrics_url = get_song_lyrics_url(song_id)
-        metadata = fetch_song_metadata(lyrics_url)
+        metadata = fetch_song_metadata(lyrics_url, artist, song_title)
 
         csv_filename = 'data/song-metadata/song-metadata.csv'
         # Save metadata to song-metadata.txt
