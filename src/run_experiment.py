@@ -14,8 +14,8 @@ def run_experiment(model_name, train_path, eval_path, verbose):
 def main():
     parser = argparse.ArgumentParser(prog="run_experiment",
                                      description="Runs an experiment using given data and models.")
-    parser.add_argument('-m', '--model', required=True)
-    parser.add_argument('-t', '--train', required=True)
+    parser.add_argument('-m', '--model', required=True, default="NB")
+    parser.add_argument('-t', '--train', required=True, default="./../data/song-metadata/song-metadata.csv")
     parser.add_argument('-e', '--eval', required=True)
     parser.add_argument('-v', '--verbose', default=True)
     
