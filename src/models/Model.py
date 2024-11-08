@@ -25,7 +25,7 @@ class Model:
         PRETTY_HAPPY_W = 1
         NOT_VERY_HAPPY_W = -3
         happiness = {}
-        with open('./../../data/gss_happiness.csv', newline='') as file:
+        with open('data/gss_happiness.csv', newline='') as file:
             reader = csv.reader(file)
             year_min, year_max = 2050, 1900
             for row in reader:
@@ -36,7 +36,7 @@ class Model:
                 happiness[year] = (VERY_HAPPY_W * vals[0] + PRETTY_HAPPY_W * vals[1] + NOT_VERY_HAPPY_W * vals[2]) / num_responses
                 year_min, year_max = min(year_min, int(year)), max(year_max, int(year))
         # Interpolate years not covered by taking from last year with available data
-        for year in range(year_min, year_max):
+        for year in range(year_min, 2025):
             if str(year) not in happiness.keys():
                 happiness[str(year)] = happiness[str(year - 1)]
         return happiness

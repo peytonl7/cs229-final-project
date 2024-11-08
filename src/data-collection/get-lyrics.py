@@ -3,7 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 
 # Set your Genius API credentials here
-GENIUS_ACCESS_TOKEN = "ACCESS_TOKEN"
+GENIUS_ACCESS_TOKEN = "dwbhA7NCxpYyEhrWGEaEgujR_vUoaRJjbFaQI8lwUnuL294EprKXKs6-aEmgZdMK"
 
 # Base URL for the Genius API
 GENIUS_API_URL = "https://api.genius.com"
@@ -108,26 +108,34 @@ def save_lyrics(artist, song_title):
 
 if __name__ == '__main__':
     songs = [
-        ("Sabrina Carpenter", "emails i can't send"),
-        ("Taylor Swift", "tis' the damn season"),
-        ("Taylor Swift", "Bad Blood"),
-        ("Olivia Rodrigo", "drivers license"),
-        ("Ed Sheeran", "Shape of You"),
-        ("Adele", "Hello"),
-        ("The Weeknd", "Blinding Lights"),
-        ("Billie Eilish", "bad guy"),
-        ("Dua Lipa", "Levitating"),
-        ("Harry Styles", "Watermelon Sugar"),
-        ("Drake", "God's Plan"),
-        ("Bruno Mars", "Uptown Funk"),
-        ("Doja Cat", "Say So"),
-        ("Lorde", "Royals"),
-        ("Beyoncé", "Halo"),
-        ("Ariana Grande", "thank u, next"),
-        ("Sam Smith", "Stay With Me"),
-        ("Katy Perry", "Firework"),
-        ("Lady Gaga", "Shallow"),
-        ("Charli xcx", "Sympathy is a knife")
+        # Train
+        # ("Sabrina Carpenter", "emails i can't send"),
+        # ("Taylor Swift", "tis' the damn season"),
+        # ("Taylor Swift", "Bad Blood"),
+        # ("Olivia Rodrigo", "drivers license"),
+        # ("Ed Sheeran", "Shape of You"),
+        # ("Adele", "Hello"),
+        # ("The Weeknd", "Blinding Lights"),
+        # ("Billie Eilish", "bad guy"),
+        # ("Dua Lipa", "Levitating"),
+        # ("Harry Styles", "Watermelon Sugar"),
+        # ("Drake", "God's Plan"),
+        # ("Bruno Mars", "Uptown Funk"),
+        # ("Doja Cat", "Say So"),
+        # ("Lorde", "Royals"),
+        # ("Beyoncé", "Halo"),
+        # ("Ariana Grande", "thank u, next"),
+        # ("Sam Smith", "Stay With Me"),
+        # ("Katy Perry", "Firework"),
+        # ("Lady Gaga", "Shallow"),
+        # ("Charli xcx", "Sympathy is a knife")
+
+        # Evaluate
+        ("Nelly", "Just a Dream"),
+        ("Bruno Mars", "Marry You"),
+        ("Post Malone", "Congratulations"),
+        ("Dua Lipa", "New Rules"),
+        ("Halsey", "Without Me")
     ]
     
     for artist, song in songs:
