@@ -13,6 +13,9 @@ class Tokenizer:
         if self.to_lower: 
             lyric_str = lyric_str.lower()
 
+        # Remove line breaks
+        lyric_str = re.sub(r'/', '', lyric_str)
+
         # Remove labels of song sections, i.e. "[Chorus]"
         lyric_str = re.sub(r'\[.*\]', '', lyric_str)
 
