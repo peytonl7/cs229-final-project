@@ -4,9 +4,11 @@ from src.tokenizer.tokenizer import Tokenizer
 from collections import defaultdict
 import numpy as np
 import csv
+import sys
 
 # Number of songs an n-gram must appear in to be counted
 MIN_SONG_THRESHOLD = 3
+csv.field_size_limit(sys.maxsize)
 
 class NaiveBayes(Model):
     def __init__(self, verbose, n=2):
@@ -25,7 +27,7 @@ class NaiveBayes(Model):
             print(f"Training on path: {train_path}")
         lyrics, years = self.read_file(train_path)
         if self.verbose:
-            print(f"Found {len(years)} songs")
+            print(f"Found {len(years)} valid songs")
         labels = self.extract_labels(years)
         if self.verbose:
             print(f"Num 'happy' years in data: {sum(labels)}\nNum 'unhappy' years in data: {len(labels) - sum(labels)}")
@@ -78,11 +80,15 @@ class NaiveBayes(Model):
         with open(train_path, newline='') as file:
             reader = csv.reader(file)
             for row in reader:
-                lyrics_fn = "data/song-lyrics/" + row[-1]
-                with open(lyrics_fn, 'r') as lyrics_file:
-                    tokens = tokenizer.tokenize_song_lyrics(lyrics_file.read())
-                    lyrics.append(tokens)
-                years.append(row[-4][-4:])
+                if row[0] == 'song': continue   # Skip header
+                song_lyrics = row[-2]
+                chart_instances = row[2]
+                if song_lyrics == "Error": continue     # Skip Genius errors
+                year = eval(chart_instances)[0]["chart_date"][:4]
+                if int(year) >= 1972:
+                    lyrics.append(tokenizer.tokenize_song_lyrics(song_lyrics))
+                    years.append(year)
+
         return lyrics, years
 
     """
@@ -155,5 +161,4 @@ class NaiveBayes(Model):
 
 if __name__ == "__main__":
     NB = NaiveBayes(verbose=True)
-    NB.train("data/song-metadata/song-metadata.csv")
-    print(NB.evaluate("data/song-metadata/song-metadata-eval.csv"))
+    NB.train("data/processed-hot-100-with-lyrics-metadata.csv")
