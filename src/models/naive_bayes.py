@@ -1,18 +1,24 @@
-from Model import Model
+from src.models.Model import Model
 from src.tokenizer.tokenizer import Tokenizer
 
 from collections import defaultdict
 import numpy as np
+import math
 import csv
 import sys
 
 # Number of songs an n-gram must appear in to be counted
-MIN_SONG_THRESHOLD = 3
+MIN_SONG_THRESHOLD = 5
+
+# Max number of words for a song to be included
+MAX_WORD_THRESHOLD = 1600
+
+# Some lyrics are really long
 csv.field_size_limit(sys.maxsize)
 
 class NaiveBayes(Model):
-    def __init__(self, verbose, n=2):
-        super().__init__("Naive Bayes", verbose)
+    def __init__(self, verbose, n=2, labels="hap"):
+        super().__init__("Naive Bayes", verbose, labels)
 
         # N-gram to use
         self.n = n
@@ -23,6 +29,10 @@ class NaiveBayes(Model):
         self.n_gram_to_ind = None
 
     def train(self, train_path: str) -> None:
+        """
+        Train a Naive Bayes classifier by computing conditional probabilities 
+        of n-grams based on lyrics data.
+        """
         if self.verbose:
             print(f"Training on path: {train_path}")
         lyrics, years = self.read_file(train_path)
@@ -30,15 +40,21 @@ class NaiveBayes(Model):
             print(f"Found {len(years)} valid songs")
         labels = self.extract_labels(years)
         if self.verbose:
-            print(f"Num 'happy' years in data: {sum(labels)}\nNum 'unhappy' years in data: {len(labels) - sum(labels)}")
+            print(f"Num 'high' years in data: {sum(labels)}\nNum 'low' years in data: {len(labels) - sum(labels)}")
         self.p_label = self.extract_label_probabilities(labels)
         self.n_grams = self.extract_n_gram_probabilities(lyrics, labels)
         if self.verbose:
-            print(f"Found {self.n_grams.shape[1]} unique n-grams")
-            print(self.n_grams)
+            print(f"Found {self.n_grams.shape[1]} unique n-grams\n")
         
     def evaluate(self, eval_path):
+        """
+        Predict from a dataset and print the results.
+        """
+        if self.verbose:
+            print(f"Evaluating on path: {eval_path}")
         lyrics, years = self.read_file(eval_path)
+        if self.verbose:
+            print(f"Found {len(years)} valid songs")
         labels = self.extract_labels(years)
         predictions = []
         for example in lyrics:
@@ -57,7 +73,7 @@ class NaiveBayes(Model):
     """
     def predict(self, song) -> int:
         # Generate matrix of n-gram counts from song
-        song_v = np.ndarray((len(self.n_gram_to_ind)))
+        song_v = np.zeros((len(self.n_gram_to_ind)))
         n_grams = self.extract_n_grams(song)
         for n_gram in n_grams.keys():
             if n_gram in self.n_gram_to_ind.keys():
@@ -85,9 +101,11 @@ class NaiveBayes(Model):
                 chart_instances = row[2]
                 if song_lyrics == "Error": continue     # Skip Genius errors
                 year = eval(chart_instances)[0]["chart_date"][:4]
-                if int(year) >= 1972:
-                    lyrics.append(tokenizer.tokenize_song_lyrics(song_lyrics))
-                    years.append(year)
+                if int(year) >= self.year_range[0] and int(year) <= self.year_range[1]:
+                    tokenized = tokenizer.tokenize_song_lyrics(song_lyrics)
+                    if len(tokenized) <= MAX_WORD_THRESHOLD:
+                        lyrics.append(tokenized)
+                        years.append(year)
 
         return lyrics, years
 
@@ -96,12 +114,11 @@ class NaiveBayes(Model):
     based on some criteria.
     """
     def extract_labels(self, years: list) -> np.ndarray:
-        happiness = self.get_GSS_labels()
-        # Decision boundary. Set as average happiness over all available years for now
-        THRESHOLD = sum(happiness.values()) / len(happiness.keys())
+        # Decision boundary. Set as average over all available years for now
+        THRESHOLD = sum(self.labels_by_year.values()) / len(self.labels_by_year.keys())
         labels = []
         for year in years:
-            labels.append(0 if happiness[year] < THRESHOLD else 1)
+            labels.append(0 if self.labels_by_year[year] < THRESHOLD else 1)
         return np.array(labels)
 
     """
@@ -110,7 +127,7 @@ class NaiveBayes(Model):
     """
     def extract_label_probabilities(self, labels) -> list:
         p_1 = sum(labels) / len(labels)
-        return [1 - p_1, p_1]
+        return [math.log(1 - p_1), math.log(p_1)]
     
     """
     Given a list of tokens, find n-gram counts and return as a dictionary.
@@ -160,5 +177,5 @@ class NaiveBayes(Model):
         
 
 if __name__ == "__main__":
-    NB = NaiveBayes(verbose=True)
+    NB = NaiveBayes(verbose=True, labels="hap")
     NB.train("data/processed-hot-100-with-lyrics-metadata.csv")
