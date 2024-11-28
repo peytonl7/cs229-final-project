@@ -313,3 +313,11 @@ Error fetching data for The Partridge Family Starring Shirley Jones Featuring Da
 Error fetching data for Heart - Dog + Butterfly: ('Connection aborted.', ConnectionResetError(54, 'Connection reset by peer'))
 
 SCRAPE 4: ENDING ON DOIN' THIS (Luke Combs, ROW 512 + 1762 + 505 + 1093 + 2235)
+
+SCRAPE 5: ENDING ON DRINK IN MY HAND (Eric Church, ROW 512 + 1762 + 505 + 1093 + 2235 + 614)
+
+SCRAPE 6: ENDING ON EYES CLOSED (Ed Sheeran, ROW 512 + 1762 + 505 + 1093 + 2235 + 614 + 656)
+
+SCRAPE 7: ENDING ON GETTING AWAY WITH IT (Electronic, ROW 512 + 1762 + 505 + 1093 + 2235 + 614 + 656 + 1307)
+
+SCRAPE 7: ENDING ON HEAT OF THE MOMENT (Asia, ROW 512 + 1762 + 505 + 1093 + 2235 + 614 + 656 + 1307 + 1371)

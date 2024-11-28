@@ -4,7 +4,7 @@ import csv
 from bs4 import BeautifulSoup
 
 # Set your Genius API credentials here
-GENIUS_ACCESS_TOKEN = "dwbhA7NCxpYyEhrWGEaEgujR_vUoaRJjbFaQI8lwUnuL294EprKXKs6-aEmgZdMK"
+GENIUS_ACCESS_TOKEN = "3IrbfUKApru5Ps6aHT3jQR9yGh0d6xSweOE52ogogZJb331vmRbs62Z7yKnDB9-e"
 
 # Base URL for the Genius API
 GENIUS_API_URL = "https://api.genius.com"
@@ -114,6 +114,6 @@ def update_csv_with_lyrics_metadata(input_csv, output_csv):
         print(f"Updated CSV saved as {output_csv}")
 
 # Usage
-input_csv = '../../data/sample-processed-hot-100.csv'
-output_csv = '../../data/processed-hot-100-with-lyrics-metadata.csv'
+input_csv = '../../data/remaining-processed-hot-100.csv'
+output_csv = '../../data/processed-hot-100-with-lyrics-metadata-8.csv'
 update_csv_with_lyrics_metadata(input_csv, output_csv)
