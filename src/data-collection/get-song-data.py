@@ -115,5 +115,5 @@ def update_csv_with_lyrics_metadata(input_csv, output_csv):
 
 # Usage
 input_csv = '../../data/remaining-processed-hot-100.csv'
-output_csv = '../../data/processed-hot-100-with-lyrics-metadata-8.csv'
+output_csv = '../../data/processed-hot-100-with-lyrics-metadata-0.csv'
 update_csv_with_lyrics_metadata(input_csv, output_csv)
