@@ -26,13 +26,13 @@ class Model:
             self.labels_by_year = self.get_GDP_labels()
         self.year_range = YEAR_RANGES[labels]
 
-    def train(self, train_path):
+    def train(self, train_data):
         raise NotImplementedError
     
     def predict(self, x):
         raise NotImplementedError
     
-    def evaluate(self, eval_path):
+    def evaluate(self, eval_data):
         raise NotImplementedError
     
     def get_HAP_labels(self):

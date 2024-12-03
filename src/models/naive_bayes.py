@@ -4,17 +4,13 @@ from src.tokenizer.tokenizer import Tokenizer
 from collections import defaultdict
 import numpy as np
 import math
-import csv
-import sys
+import pandas as pd
 
 # Number of songs an n-gram must appear in to be counted
 MIN_SONG_THRESHOLD = 5
 
 # Max number of words for a song to be included
 MAX_WORD_THRESHOLD = 1600
-
-# Some lyrics are really long
-csv.field_size_limit(sys.maxsize)
 
 class NaiveBayes(Model):
     def __init__(self, verbose, n=2, labels="hap"):
@@ -28,14 +24,14 @@ class NaiveBayes(Model):
         # N-gram to index dictionary
         self.n_gram_to_ind = None
 
-    def train(self, train_path: str) -> None:
+    def train(self, train_data: str) -> None:
         """
         Train a Naive Bayes classifier by computing conditional probabilities 
         of n-grams based on lyrics data.
         """
-        if self.verbose:
-            print(f"Training on path: {train_path}")
-        lyrics, years = self.read_file(train_path)
+        # TODO: Filter data for long lyrics and wrong years
+        lyrics, years = self.filter(train_data[["lyrics", "chart_instances"]])
+        # Train on three parts of input data
         if self.verbose:
             print(f"Found {len(years)} valid songs")
         labels = self.extract_labels(years)
@@ -46,13 +42,11 @@ class NaiveBayes(Model):
         if self.verbose:
             print(f"Found {self.n_grams.shape[1]} unique n-grams\n")
         
-    def evaluate(self, eval_path):
+    def evaluate(self, eval_data):
         """
         Predict from a dataset and print the results.
         """
-        if self.verbose:
-            print(f"Evaluating on path: {eval_path}")
-        lyrics, years = self.read_file(eval_path)
+        lyrics, years = self.filter(eval_data[["lyrics", "chart_instances"]])
         if self.verbose:
             print(f"Found {len(years)} valid songs")
         labels = self.extract_labels(years)
@@ -84,30 +78,19 @@ class NaiveBayes(Model):
         return 1 if prob_1 > prob_0 else 0
 
     """
-    Read the song metadata into a list of dicts.
+    Filter the song data by relevant year (to label) and length of lyrics.
     Returns:
         lyrics: list of lists of tokenized lyrics for songs in dataset
         years: list of release years (strings) for songs in dataset
     """
-    def read_file(self, train_path: str):
+    def filter(self, df: pd.DataFrame):
         tokenizer = Tokenizer()
-        lyrics = []
-        years = []
-        with open(train_path, newline='') as file:
-            reader = csv.reader(file)
-            for row in reader:
-                if row[0] == 'song': continue   # Skip header
-                song_lyrics = row[-2]
-                chart_instances = row[2]
-                if song_lyrics == "Error": continue     # Skip Genius errors
-                year = eval(chart_instances)[0]["chart_date"][:4]
-                if int(year) >= self.year_range[0] and int(year) <= self.year_range[1]:
-                    tokenized = tokenizer.tokenize_song_lyrics(song_lyrics)
-                    if len(tokenized) <= MAX_WORD_THRESHOLD:
-                        lyrics.append(tokenized)
-                        years.append(year)
-
-        return lyrics, years
+        df = df.loc[df["lyrics"] != "Error"]
+        df["lyrics"] = df["lyrics"].apply(tokenizer.tokenize_song_lyrics)
+        df["lyrics_len"] = df["lyrics"].apply(len)
+        df["years"] = df["chart_instances"].str.extract(r'(\d\d\d\d)', expand=False).astype(int)
+        df = df[(df["lyrics_len"] <= MAX_WORD_THRESHOLD) & (df["years"] >= self.year_range[0]) & (df["years"] <= self.year_range[1])]
+        return list(df["lyrics"]), list(df["years"].astype(str))
 
     """
     Returns an ordered list of binary(?) labels for the data
