@@ -42,14 +42,14 @@ lyrics_metadata['release_date'] = lyrics_metadata['metadata'].apply(lambda x: x.
 lyrics_metadata['genre'] = lyrics_metadata['metadata'].apply(lambda x: x.get('Tags', [None])[0])
 
 # Calculate sentiment scores
-
-"""
 lyrics_metadata['sentiment'] = lyrics_metadata['lyrics'].apply(
     lambda x: TextBlob(str(x)).sentiment.polarity
 )
-"""
 
+"""
+Uncomment this to speed up (no sentiment analysis)
 lyrics_metadata['sentiment'] = 0
+"""
 
 # Drop invalid data points and log them
 initial_size = len(lyrics_metadata)
@@ -109,61 +109,65 @@ metrics = [
     (gdp_cleaned, "GDP"),
     (gss_happiness_cleaned, "Happiness")
 ]
+
 for metric, name in metrics:
     train_predictive_model(lyrics_metadata, metric, name, use_metadata=False)
     train_predictive_model(lyrics_metadata, metric, name, use_metadata=True)
 
 # Step 4: Sentiment-Well-being Trends
-def analyze_sentiment_trends(lyrics_df, wellbeing_df, target_metric):
-    lyrics_df['release_year'] = pd.to_datetime(lyrics_df['release_date'], errors='coerce').dt.year
-    combined = pd.merge(lyrics_df[['release_year', 'sentiment']], wellbeing_df, 
-                        left_on='release_year', right_on='year', how='inner')
-    plt.figure(figsize=(10, 6))
-    plt.plot(combined['year'], combined['sentiment'], label='Sentiment')
-    plt.plot(combined['year'], combined['value'], label=target_metric)
-    plt.legend()
-    plt.title(f"Sentiment vs. {target_metric}")
-    plt.xlabel("Year")
-    plt.ylabel("Values")
-    plt.show()
-
-# Analyze sentiment trends for each well-being metric
-for metric, name in metrics:
-    analyze_sentiment_trends(lyrics_metadata, metric, name)
-
-# Step 5: Combine All Trends into a Single Plot
 def plot_sentiment_and_wellbeing_trends(lyrics_df, metrics_data):
     # Prepare sentiment data
     lyrics_df['release_year'] = pd.to_datetime(lyrics_df['release_date'], errors='coerce').dt.year
     sentiment_by_year = lyrics_df.groupby('release_year')['sentiment'].mean().reset_index()
     sentiment_by_year.columns = ['year', 'sentiment']
 
-    # Normalize data for plotting
+    # Normalize a series
     def normalize_series(series):
         return (series - series.min()) / (series.max() - series.min())
 
-    # Prepare the combined dataframe for plotting
+    # Initialize a DataFrame for plotting
     trend_data = sentiment_by_year.copy()
     trend_data['sentiment'] = normalize_series(trend_data['sentiment'])
 
-    for metric_df, metric_name in metrics_data:
-        metric_df['value_normalized'] = normalize_series(metric_df['value'])
-        trend_data = pd.merge(trend_data, metric_df[['year', 'value_normalized']], on='year', how='outer', suffixes=('', f'_{metric_name}'))
+    # Ensure 'year' column has no missing values before generating the range
+    valid_years = trend_data['year'].dropna().astype(int)
+    all_years = pd.Series(range(max(1940, valid_years.min()), min(2024, valid_years.max()) + 1), name='year')
 
-    # Plotting
-    plt.figure(figsize=(14, 8))
-    plt.plot(trend_data['year'], trend_data['sentiment'], label='Sentiment', linewidth=2)
-    
+    # Expand trend_data to include all years within the range
+    trend_data = pd.merge(all_years, trend_data, on='year', how='left')
+
+    # Merge each well-being metric into the trend_data DataFrame and interpolate missing values
     for metric_df, metric_name in metrics_data:
-        plt.plot(trend_data['year'], trend_data[f'value_normalized'], label=metric_name, linewidth=2)
-    
-    plt.title("Sentiment vs Well-being Metrics Over Time", fontsize=16)
+        # Rename the value column for clarity
+        metric_df = metric_df.rename(columns={'value': f'value_{metric_name}'})
+        # Merge with trend_data on the year
+        trend_data = pd.merge(trend_data, metric_df[['year', f'value_{metric_name}']], on='year', how='left')
+        # Interpolate missing values for this metric
+        trend_data[f'value_{metric_name}'] = trend_data[f'value_{metric_name}'].interpolate(method='linear')
+
+    # Normalize the well-being values and filter out rows with missing data
+    for _, metric_name in metrics_data:
+        column_name = f'value_{metric_name}'
+        trend_data[column_name] = normalize_series(trend_data[column_name])
+
+    # Clip data to the desired year range (1940–2024)
+    trend_data = trend_data[(trend_data['year'] >= 1940) & (trend_data['year'] <= 2024)]
+
+    # Plot the trends
+    plt.figure(figsize=(14, 8))
+    plt.plot(trend_data['year'], trend_data['sentiment'], label='Sentiment', linewidth=2, color='blue')
+
+    for _, metric_name in metrics_data:
+        plt.plot(trend_data['year'], trend_data[f'value_{metric_name}'], label=metric_name, linewidth=2)
+
+    plt.title("Sentiment vs Well-being Metrics Over Time (1940–2024)", fontsize=16)
     plt.xlabel("Year", fontsize=12)
     plt.ylabel("Normalized Values", fontsize=12)
     plt.legend()
     plt.grid(True, which='both', linestyle='--', linewidth=0.5)
     plt.tight_layout()
     plt.show()
+
 
 # Define the list of metrics and their names
 metrics_data = [
