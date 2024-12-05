@@ -1,4 +1,111 @@
-import pandas as pd
+import csv
+import requests
+from bs4 import BeautifulSoup
+
+# Set your Genius API credentials here
+GENIUS_ACCESS_TOKEN = "3IrbfUKApru5Ps6aHT3jQR9yGh0d6xSweOE52ogogZJb331vmRbs62Z7yKnDB9-e"
+GENIUS_API_URL = "https://api.genius.com"
+
+# Function to search for a song on Genius and get its ID
+def search_song(artist, song_title):
+    headers = {"Authorization": f"Bearer {GENIUS_ACCESS_TOKEN}"}
+    search_url = f"{GENIUS_API_URL}/search"
+    query = f"{song_title} {artist}"
+    params = {"q": query}
+    response = requests.get(search_url, headers=headers, params=params)
+
+    if response.status_code != 200:
+        raise Exception(f"Error: Failed to fetch song data for {artist} - {song_title}")
+
+    hits = response.json().get("response", {}).get("hits", [])
+    if not hits:
+        raise Exception(f"Error: No results found for {artist} - {song_title}")
+    
+    song_id = hits[0]["result"]["id"]
+    return song_id
+
+# Function to get song lyrics URL by song ID
+def get_song_lyrics_url(song_id):
+    headers = {"Authorization": f"Bearer {GENIUS_ACCESS_TOKEN}"}
+    song_url = f"{GENIUS_API_URL}/songs/{song_id}"
+    response = requests.get(song_url, headers=headers)
+
+    if response.status_code != 200:
+        raise Exception(f"Error: Failed to fetch song data for song ID {song_id}")
+    
+    song_data = response.json().get("response", {}).get("song", {})
+    return song_data.get("url")
+
+# Function to fetch the raw lyrics from the Genius lyrics page
+def fetch_raw_lyrics(lyrics_url):
+    response = requests.get(lyrics_url)
+    
+    if response.status_code != 200:
+        raise Exception(f"Error: Genius lyrics page not found at {lyrics_url}")
+    
+    soup = BeautifulSoup(response.content, 'html.parser')
+    lyrics_div = soup.find_all('div', {'data-lyrics-container': 'true'})
+    
+    if not lyrics_div:
+        raise Exception(f"Error: Could not find lyrics on the page {lyrics_url}")
+    
+    lyrics = ''.join([div.get_text(separator=' / ') for div in lyrics_div])
+    return lyrics.strip()
+
+# Function to fetch metadata from Genius song page
+def fetch_song_metadata(url):
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    metadata = {
+        'Producer': 'N/A',
+        'Writers': 'N/A',
+        'Release Date': 'N/A',
+        'Tags': 'N/A'
+    }
+    metadata['Producer'] = soup.select_one('.SongInfo__Credit-nekw6x-3:has(.SongInfo__Label-nekw6x-4:-soup-contains("Producer")) a').get_text(strip=True) if soup.select_one('.SongInfo__Label-nekw6x-4:-soup-contains("Producer")') else 'N/A'
+    metadata['Writers'] = ', '.join([writer.get_text(strip=True) for writer in soup.select('.SongInfo__Credit-nekw6x-3:has(.SongInfo__Label-nekw6x-4:-soup-contains("Writers")) a')])
+    metadata['Release Date'] = soup.select_one('.SongInfo__Credit-nekw6x-3:has(.SongInfo__Label-nekw6x-4:-soup-contains("Released on"))').get_text(strip=True).replace("Released on", "").strip() if soup.select_one('.SongInfo__Label-nekw6x-4:-soup-contains("Released on")') else 'N/A'
+    tags = []
+    tags_container = soup.find('div', class_='SongTags__Container-xixwg3-1')
+    if tags_container:
+        tag_elements = tags_container.find_all('a', class_='SongTags__Tag-xixwg3-2')
+        tags = [tag.get_text(strip=True) for tag in tag_elements]
+    metadata['Tags'] = tags
+    return metadata
+
+# Main function to update the CSV with lyrics and metadata
+def update_csv_with_lyrics_metadata(songs_artists, output_csv):
+    fieldnames = ['song', 'artist', 'lyrics', 'metadata']
+    with open(output_csv, 'a', encoding='utf-8', newline='') as output_file:
+        writer = csv.DictWriter(output_file, fieldnames=fieldnames)
+
+        # Write header only if the file is empty
+        if output_file.tell() == 0:
+            writer.writeheader()
+
+        for year, song_title, artist in songs_artists:
+            try:
+                song_id = search_song(artist, song_title)
+                lyrics_url = get_song_lyrics_url(song_id)
+                lyrics = fetch_raw_lyrics(lyrics_url)
+                metadata = fetch_song_metadata(lyrics_url)
+                row = {
+                    'song': song_title,
+                    'artist': artist,
+                    'lyrics': lyrics,
+                    'metadata': metadata
+                }
+            except Exception as e:
+                print(f"Error fetching data for {song_title} by {artist}: {e}")
+                row = {
+                    'song': song_title,
+                    'artist': artist,
+                    'lyrics': 'Error',
+                    'metadata': 'Error'
+                }
+
+            writer.writerow(row)
+            print(f"Processed: {song_title} by {artist}")
 
 # Define the list of songs and artists
 songs_artists = [
@@ -75,29 +182,5 @@ songs_artists = [
     (2022, "As It Was", "Harry Styles")
 ]
 
-# Load the CSVs
-lyrics_metadata_parts = [
-    "data/processed-hot-100-with-lyrics-metadata-part-1.csv",
-    "data/processed-hot-100-with-lyrics-metadata-part-2.csv",
-    "data/processed-hot-100-with-lyrics-metadata-part-3.csv"
-]
-lyrics_metadata = pd.concat(
-    [pd.read_csv(file) for file in lyrics_metadata_parts], 
-    ignore_index=True
-)
-
-# Convert the list into a DataFrame for easier lookup
-songs_df = pd.DataFrame(songs_artists, columns=["year", "song", "performer"])
-
-# Merge and filter for matching songs and artists
-matched_songs = lyrics_metadata.merge(
-    songs_df,
-    left_on=["song", "performer"],
-    right_on=["song", "performer"],
-    how="inner"
-)
-
-# Save the result to a new CSV
-matched_songs.to_csv("data/top_uk_songs_lyrics_metadata.csv", index=False)
-
-print(f"Filtered UK songs saved to 'top_uk_songs_lyrics_metadata.csv'.")
+output_csv = "data/top_uk_songs_lyrics_metadata.csv"
+update_csv_with_lyrics_metadata(songs_artists, output_csv)
