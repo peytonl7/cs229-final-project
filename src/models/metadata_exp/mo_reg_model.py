@@ -8,10 +8,10 @@ import torch.nn as nn
 import torch.optim as optim
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
+import matplotlib.pyplot as plt
+from sklearn.metrics import r2_score
 
-# This model was originally run in Google Colab for efficiency purposes. To view the original,
-# please access link https://colab.research.google.com/drive/1tzYTgdb8R0G5GJQ5x59lqzk4BISo0M6R?usp=sharing
-
+# Preprocessing
 def load_and_preprocess():
     train_data = pd.read_csv('train.csv')
     val_data = pd.read_csv('val.csv')
@@ -38,7 +38,7 @@ def load_and_preprocess():
     X_val_tfidf = vectorizer.transform(X_val).toarray()
     X_test_tfidf = vectorizer.transform(X_test).toarray()
 
-    # scale inputs & outputs since we have diff ranges for features
+    # scale inputs & outputs
     scaler = StandardScaler()
     X_train_tfidf = scaler.fit_transform(X_train_tfidf)
     X_val_tfidf = scaler.transform(X_val_tfidf)
@@ -50,7 +50,43 @@ def load_and_preprocess():
 
     return X_train_tfidf, y_train, years_train, X_val_tfidf, y_val, years_val, X_test_tfidf, y_test, years_test, vectorizer, scaler, target_scaler
 
+# plotting functions, metrics
 
+# visualize preds v true vals
+def plot_predictions(predictions, true_values, years_test):
+    features = ['Presidential Approval', 'Congressional Approval', 'GDP', 'Economic Freedom']
+    num_features = len(features)
+
+    for i in range(num_features):
+        plt.figure(figsize=(8, 6))
+        plt.scatter(true_values[:, i], predictions[:, i], alpha=0.7)
+        plt.plot([min(true_values[:, i]), max(true_values[:, i])],
+                 [min(true_values[:, i]), max(true_values[:, i])], color='red', linestyle='--')
+        plt.title(f"Predicted vs. True Values for {features[i]}")
+        plt.xlabel("True Values")
+        plt.ylabel("Predicted Values")
+        plt.show()
+
+# over time
+def plot_over_time(predictions, true_values, years_test):
+    features = ['Presidential Approval', 'Congressional Approval', 'GDP', 'Economic Freedom']
+    num_features = len(features)
+
+    for i in range(num_features):
+        plt.figure(figsize=(10, 6))
+        plt.plot(years_test, true_values[:, i], label="True Values", marker='o')
+        plt.plot(years_test, predictions[:, i], label="Predictions", marker='x')
+        plt.title(f"{features[i]} Over Time")
+        plt.xlabel("Year")
+        plt.ylabel(features[i])
+        plt.legend()
+        plt.show()
+# get r^2 metric
+def compute_r2_score(predictions, true_values):
+    r2_per_feature = r2_score(true_values, predictions, multioutput='raw_values')
+    print("R-squared for each feature:")
+    for i, feature in enumerate(['Presidential Approval', 'Congressional Approval', 'GDP', 'Economic Freedom']):
+        print(f"{feature}: {r2_per_feature[i]}")
 
 # Model!
 class MultiOutputRegressionModel(nn.Module):
@@ -93,15 +129,23 @@ def train_model(model, X_train, y_train, X_val, y_val, epochs=100, lr=0.001):
 
     return model
 
-def evaluate_model(model, X_test, y_test):
+def evaluate_model(model, X_test, y_test, target_scaler):
     X_test_tensor = torch.tensor(X_test, dtype=torch.float32)
     y_test_tensor = torch.tensor(y_test, dtype=torch.float32)
 
     model.eval()
     with torch.no_grad():
-        test_predictions = model(X_test_tensor)
-        test_loss = nn.MSELoss()(test_predictions, y_test_tensor)
-    print(f"Test Loss: {test_loss.item()}")
+        test_predictions = model(X_test_tensor).numpy()
+        test_predictions_original_scale = target_scaler.inverse_transform(test_predictions)
+        y_test_original_scale = target_scaler.inverse_transform(y_test)
+
+    mse_per_feature = np.mean((test_predictions_original_scale - y_test_original_scale) ** 2, axis=0)
+    print("MSE for each feature:")
+    for i, feature in enumerate(['Presidential Approval', 'Congressional Approval', 'GDP', 'Economic Freedom']):
+        print(f"{feature}: {mse_per_feature[i]}")
+
+    return mse_per_feature
+
 
 if __name__ == "__main__":
     X_train, y_train, years_train, X_val, y_val, years_val, X_test, y_test, years_test, vectorizer, scaler, target_scaler = load_and_preprocess()
@@ -111,7 +155,7 @@ if __name__ == "__main__":
     model = MultiOutputRegressionModel(input_dim, output_dim)
 
     model = train_model(model, X_train, y_train, X_val, y_val)
-    evaluate_model(model, X_test, y_test)
+    evaluate_model(model, X_test, y_test, target_scaler)
 
     # predict
     X_test_tensor = torch.tensor(X_test, dtype=torch.float32)
@@ -128,4 +172,10 @@ if __name__ == "__main__":
     print("first 5 predictions with corresponding years:")
     print(predictions_with_years.head())
 
+    # visualizations
+    print("getting scatter plots for predictions vs true values, pls wait")
+    plot_predictions(predictions_original_scale, target_scaler.inverse_transform(y_test), years_test)
+    print("getting plot over time, pls wait")
+    plot_over_time(predictions_original_scale, target_scaler.inverse_transform(y_test), years_test)
 
+    compute_r2_score(predictions_original_scale, target_scaler.inverse_transform(y_test))
